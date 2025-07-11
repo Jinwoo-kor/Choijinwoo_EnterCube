@@ -72,4 +72,13 @@ public class Platform : MonoBehaviour
     {
         return (int)currentColor;
     }
+
+    void OnMouseDown()
+    {
+        PlatformManager manager = FindObjectOfType<PlatformManager>();
+        if (manager != null)
+        {
+            manager.AddColorToStack(GetColorCode());
+        }
+    }
 }

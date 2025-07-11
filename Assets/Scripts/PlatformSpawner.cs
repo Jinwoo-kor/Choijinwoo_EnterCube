@@ -6,20 +6,34 @@ public class PlatformSpawner : MonoBehaviour
 {
     public GameObject platformPrefab;
     public float offset = 0.5f;
-    public Transform spawnPoint;
 
-    // 생성된 플랫폼 저장 리스트
-    public List<GameObject> spawnedPlatforms = new List<GameObject>();
+    public List<GameObject> centerPlatforms = new List<GameObject>();
+    public List<GameObject> candidatePlatforms = new List<GameObject>();
 
-    // 플랫폼 생성 함수
-    public void Spawn(Transform centerPoint, string tag = "Platform", bool clearBeforeSpawn = true)
+    public void SpawnCenterPlatforms(Vector3 centerPoint)
     {
-        if (clearBeforeSpawn)
-        {
-            ClearPreviousPlatforms();
-        }
+        ClearPlatforms(centerPlatforms);
 
-        Vector3 basePosition = centerPoint.position;
+        Vector3[] offsets = new Vector3[]
+        {
+            new Vector3(-offset, 0f, -offset),
+            new Vector3(-offset, 0f, offset),
+            new Vector3(offset, 0f, offset),
+            new Vector3(offset, 0f, -offset)
+        };
+
+        foreach (Vector3 offsetPos in offsets)
+        {
+            Vector3 spawnPosition = centerPoint + offsetPos;
+            GameObject platform = Instantiate(platformPrefab, spawnPosition, Quaternion.identity);
+            platform.tag = "Platform";
+            centerPlatforms.Add(platform);
+        }
+    }
+
+    public void PreSpawnCandidatePlatforms(Vector3 basePosition)
+    {
+        ClearPlatforms(candidatePlatforms);
 
         Vector3[] offsets = new Vector3[]
         {
@@ -33,15 +47,14 @@ public class PlatformSpawner : MonoBehaviour
         {
             Vector3 spawnPosition = basePosition + offsetPos;
             GameObject platform = Instantiate(platformPrefab, spawnPosition, Quaternion.identity);
-            platform.tag = tag;
-            spawnedPlatforms.Add(platform);
+            platform.tag = "Candidate";
+            candidatePlatforms.Add(platform);
         }
     }
 
-    // 기존 플랫폼에 Rigidbody 추가 및 리스트 초기화
-    public void ClearPreviousPlatforms()
+    public void ClearPlatforms(List<GameObject> platforms)
     {
-        foreach (GameObject platform in spawnedPlatforms)
+        foreach (GameObject platform in platforms)
         {
             if (platform != null)
             {
@@ -52,9 +65,9 @@ public class PlatformSpawner : MonoBehaviour
                 }
                 rb.useGravity = true;
                 rb.isKinematic = false;
+                Destroy(platform, 3f);
             }
         }
-
-        spawnedPlatforms.Clear();
+        platforms.Clear();
     }
 }

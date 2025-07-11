@@ -4,103 +4,36 @@ using UnityEngine;
 
 public class PlatformManager : MonoBehaviour
 {
-    [Header("케이스 위치들")]
-    public Vector3[] casePositions = new Vector3[4]
-    {
-        new Vector3(10f, 5f, 0f),
-        new Vector3(-10f, 5f, 0f),
-        new Vector3(0f, 5f, 10f),
-        new Vector3(0f, 5f, -10f)
-    };
-
-    [Header("스폰 포인트")]
-    public Transform spawnPoint;
-
-    [Header("플랫폼 생성기")]
     public PlatformSpawner platformSpawner;
-
-    private int currentCaseIndex = -1;
-    private GameObject nextStagePlatform;
-    private int score = 0;
+    public float offset = 0.5f;
     public List<int> colorStack = new List<int>();
+    public int score = 0;
 
     void Start()
     {
-        spawnPoint.position = Vector3.zero;
-        platformSpawner.Spawn(spawnPoint, "Platform", false); // 중심 플랫폼 4개 생성
-        SpawnCasePlatforms(); // 공중 플랫폼 4세트 생성
-    }
-
-    public IEnumerator TransitionToNextStage()
-    {
-        foreach (GameObject platform in platformSpawner.spawnedPlatforms)
-        {
-            if (platform != null)
-            {
-                Rigidbody rb = platform.GetComponent<Rigidbody>();
-                if (rb == null) rb = platform.AddComponent<Rigidbody>();
-                rb.useGravity = true;
-                rb.isKinematic = false;
-                Destroy(platform, 3f);
-            }
-        }
-        platformSpawner.spawnedPlatforms.Clear();
-
-        yield return StartCoroutine(MoveSelectedPlatformToCenter());
-
-        score += 10;
-        Debug.Log("점수 증가! 현재 점수: " + score);
-
-        ResetStack();
-        SpawnCasePlatforms();
-    }
-
-    private IEnumerator MoveSelectedPlatformToCenter()
-    {
-        if (nextStagePlatform == null)
-        {
-            Debug.LogWarning("다음 스테이지 플랫폼이 없습니다.");
-            yield break;
-        }
-
-        float duration = 0.5f;
-        float timer = 0f;
-        Vector3 startPos = nextStagePlatform.transform.position;
-
-        while (timer < duration)
-        {
-            float t = timer / duration;
-            nextStagePlatform.transform.position = Vector3.Lerp(startPos, Vector3.zero, t);
-            timer += Time.deltaTime;
-            yield return null;
-        }
-
-        nextStagePlatform.transform.position = Vector3.zero;
-        nextStagePlatform.tag = "Platform";
-
-        Platform p = nextStagePlatform.GetComponent<Platform>();
-        if (p != null)
-        {
-            p.isLocked = false;
-            p.colorChangeInterval = 2f;
-        }
-
-        platformSpawner.spawnedPlatforms.Add(nextStagePlatform);
-        nextStagePlatform = null;
+        platformSpawner.SpawnCenterPlatforms(Vector3.zero);
+        PreSpawnNextStageCandidates();
     }
 
     public void AddColorToStack(int colorCode)
     {
+        if (colorStack.Count > 0 && colorStack[0] != colorCode)
+        {
+            Debug.Log("색상 불일치! 즉시 초기화.");
+            ResetAllPlatforms();
+            return;
+        }
+
         colorStack.Add(colorCode);
         if (colorStack.Count == 4)
         {
             if (IsStackMatched())
             {
-                Debug.Log("색상 일치 성공! Enter 키로 다음 스테이지로 이동 가능");
+                Debug.Log("색상 일치! Enter 키로 다음 스테이지로 이동하세요.");
             }
             else
             {
-                Debug.Log("색상 불일치! 초기화");
+                Debug.Log("색상 불일치! 스택 초기화 및 플랫폼 초기화.");
                 ResetAllPlatforms();
             }
         }
@@ -108,10 +41,11 @@ public class PlatformManager : MonoBehaviour
 
     public bool IsStackMatched()
     {
+        if (colorStack.Count == 0) return false;
         int first = colorStack[0];
-        foreach (int color in colorStack)
+        foreach (int code in colorStack)
         {
-            if (color != first) return false;
+            if (code != first) return false;
         }
         return true;
     }
@@ -119,7 +53,7 @@ public class PlatformManager : MonoBehaviour
     public void ResetAllPlatforms()
     {
         colorStack.Clear();
-        foreach (GameObject platform in platformSpawner.spawnedPlatforms)
+        foreach (GameObject platform in platformSpawner.centerPlatforms)
         {
             if (platform != null)
             {
@@ -133,30 +67,76 @@ public class PlatformManager : MonoBehaviour
         }
     }
 
-    public void ResetStack()
+    public IEnumerator TransitionToNextStage()
     {
+        platformSpawner.ClearPlatforms(platformSpawner.centerPlatforms);
+        yield return StartCoroutine(MoveCandidatePlatformsToCenter());
+        score += 10;
+        Debug.Log("점수: " + score);
         colorStack.Clear();
+        PreSpawnNextStageCandidates();
     }
 
-    public void SpawnCasePlatforms()
+    IEnumerator MoveCandidatePlatformsToCenter()
     {
-        GameObject[] oldCases = GameObject.FindGameObjectsWithTag("CasePlatform");
-        foreach (GameObject obj in oldCases)
+        float duration = 0.5f;
+        float timer = 0f;
+
+        Vector3[] targetOffsets = new Vector3[]
         {
-            Destroy(obj);
+            new Vector3(-platformSpawner.offset, 0f, -platformSpawner.offset),
+            new Vector3(-platformSpawner.offset, 0f, platformSpawner.offset),
+            new Vector3(platformSpawner.offset, 0f, platformSpawner.offset),
+            new Vector3(platformSpawner.offset, 0f, -platformSpawner.offset)
+        };
+
+        List<Vector3> startPositions = new List<Vector3>();
+        for (int i = 0; i < platformSpawner.candidatePlatforms.Count; i++)
+        {
+            startPositions.Add(platformSpawner.candidatePlatforms[i].transform.position);
         }
 
-        List<GameObject> casePlatforms = new List<GameObject>();
-        foreach (Vector3 pos in casePositions)
+        while (timer < duration)
         {
-            GameObject tempSpawn = new GameObject("TempSpawn");
-            tempSpawn.transform.position = pos;
-            platformSpawner.Spawn(tempSpawn.transform, "CasePlatform", false);
-            casePlatforms.AddRange(platformSpawner.spawnedPlatforms);
+            float t = timer / duration;
+            for (int i = 0; i < platformSpawner.candidatePlatforms.Count && i < targetOffsets.Length; i++)
+            {
+                Vector3 targetPos = targetOffsets[i];
+                platformSpawner.candidatePlatforms[i].transform.position = Vector3.Lerp(startPositions[i], targetPos, t);
+            }
+            timer += Time.deltaTime;
+            yield return null;
         }
 
-        int nextCaseIndex = Random.Range(0, casePlatforms.Count);
-        currentCaseIndex = nextCaseIndex;
-        nextStagePlatform = casePlatforms[nextCaseIndex];
+        for (int i = 0; i < platformSpawner.candidatePlatforms.Count && i < targetOffsets.Length; i++)
+        {
+            platformSpawner.candidatePlatforms[i].transform.position = targetOffsets[i];
+            platformSpawner.candidatePlatforms[i].tag = "Platform";
+
+            Platform p = platformSpawner.candidatePlatforms[i].GetComponent<Platform>();
+            if (p != null)
+            {
+                p.isLocked = false;
+                p.colorChangeInterval = 2f;
+            }
+
+            platformSpawner.centerPlatforms.Add(platformSpawner.candidatePlatforms[i]);
+        }
+
+        platformSpawner.candidatePlatforms.Clear();
+    }
+
+    void PreSpawnNextStageCandidates()
+    {
+        Vector3[] casePositions = new Vector3[]
+        {
+            new Vector3(10f, 5f, 0f),
+            new Vector3(-10f, 5f, 0f),
+            new Vector3(0f, 5f, 10f),
+            new Vector3(0f, 5f, -10f)
+        };
+
+        int index = Random.Range(0, casePositions.Length);
+        platformSpawner.PreSpawnCandidatePlatforms(casePositions[index]);
     }
 }

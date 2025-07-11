@@ -1,14 +1,17 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Player : MonoBehaviour
 {
+    public PlatformManager platformManager;
+    public PlatformSpawner platformSpawner;
+
     public float moveDistance = 1f;
     public float moveSpeed = 5f;
     public float moveCooldown = 0.2f;
-    public float jumpHeight = 1f;
-    public float jumpDuration = 0.5f;
-    public PlatformManager platformManager;
+    public float jumpHeight = 2f;
+    public float jumpDuration = 2.0f; // Slower jump
 
     private Vector3 targetPosition;
     private bool isMoving = false;
@@ -59,32 +62,13 @@ public class Player : MonoBehaviour
         if (direction != Vector3.zero)
         {
             Vector3 nextPosition = transform.position + direction * moveDistance;
-            if (IsValidMove(nextPosition))
+            if (Mathf.Abs(nextPosition.x) <= 0.5f && Mathf.Abs(nextPosition.z) <= 0.5f)
             {
                 StartCoroutine(MoveTo(nextPosition));
                 transform.rotation = Quaternion.LookRotation(direction);
                 moveTimer = 0f;
             }
         }
-    }
-
-    bool IsValidMove(Vector3 pos)
-    {
-        Vector3 offset = pos - Vector3.zero;
-        Vector3[] validOffsets = new Vector3[]
-        {
-            new Vector3(-0.5f, 0.1f, -0.5f),
-            new Vector3(-0.5f, 0.1f, 0.5f),
-            new Vector3(0.5f, 0.1f, 0.5f),
-            new Vector3(0.5f, 0.1f, -0.5f)
-        };
-
-        foreach (Vector3 valid in validOffsets)
-        {
-            if (Vector3.Distance(offset, valid) < 0.1f)
-                return true;
-        }
-        return false;
     }
 
     IEnumerator MoveTo(Vector3 destination)
@@ -110,7 +94,10 @@ public class Player : MonoBehaviour
                 if (platform != null && !platform.isLocked)
                 {
                     platform.LockColor();
-                    platformManager.AddColorToStack(platform.GetColorCode());
+                    if (platformManager != null)
+                    {
+                        platformManager.AddColorToStack(platform.GetColorCode());
+                    }
                     break;
                 }
             }
@@ -121,7 +108,7 @@ public class Player : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Return))
         {
-            if (platformManager.colorStack.Count == 4 && platformManager.IsStackMatched())
+            if (platformManager != null && platformManager.colorStack.Count == 4 && platformManager.IsStackMatched())
             {
                 StartCoroutine(JumpAndTransition());
             }
@@ -130,44 +117,36 @@ public class Player : MonoBehaviour
 
     IEnumerator JumpAndTransition()
     {
-        yield return StartCoroutine(JumpEffect());
-
-        bool allBelowZero = true;
-        foreach (GameObject platform in platformManager.platformSpawner.spawnedPlatforms)
-        {
-            if (platform != null && platform.transform.position.y > 0f)
-            {
-                allBelowZero = false;
-                break;
-            }
-        }
-
-        if (allBelowZero)
-        {
-            platformManager.StartCoroutine(platformManager.TransitionToNextStage());
-        }
-        else
-        {
-            Debug.Log("플랫폼이 아직 충분히 내려가지 않았습니다.");
-        }
-    }
-
-    IEnumerator JumpEffect()
-    {
+        if (isJumping) yield break;
         isJumping = true;
-        float elapsed = 0f;
-        Vector3 startPos = transform.position;
 
-        while (elapsed < jumpDuration)
+        // Start platform transition immediately
+        if (platformManager != null)
         {
-            float t = elapsed / jumpDuration;
-            float height = Mathf.Sin(Mathf.PI * t) * jumpHeight;
-            transform.position = new Vector3(startPos.x, startPos.y + height, startPos.z);
-            elapsed += Time.deltaTime;
+            StartCoroutine(platformManager.TransitionToNextStage());
+        }
+
+        Vector3 startPos = transform.position;
+        Vector3 peakPos = startPos + Vector3.up * jumpHeight;
+        float timer = 0f;
+
+        // Jump up
+        while (timer < jumpDuration / 2f)
+        {
+            transform.position = Vector3.Lerp(startPos, peakPos, timer / (jumpDuration / 2f));
+            timer += Time.deltaTime;
             yield return null;
         }
 
-        transform.position = startPos;
+        // Jump down
+        timer = 0f;
+        while (timer < jumpDuration / 2f)
+        {
+            transform.position = Vector3.Lerp(peakPos, startPos, timer / (jumpDuration / 2f));
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
         isJumping = false;
     }
 }
