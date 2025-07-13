@@ -87,7 +87,7 @@ public class Player : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            Collider[] hits = Physics.OverlapSphere(transform.position, 0.1f);
+            Collider[] hits = Physics.OverlapSphere(transform.position, 0.5f);
             foreach (Collider hit in hits)
             {
                 Platform platform = hit.GetComponent<Platform>();
@@ -149,4 +149,12 @@ public class Player : MonoBehaviour
 
         isJumping = false;
     }
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            Debug.Log("ÇÃ·¹ÀÌ¾î°¡ ÇÃ·§Æû¿¡ ´êÀ½");
+        }
+    }
+
 }

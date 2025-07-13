@@ -66,7 +66,15 @@ public class Platform : MonoBehaviour
     public void LockColor()
     {
         isLocked = true;
+
+        if (rend != null)
+        {
+            rend.material.color = Color.yellow; // 색상 고정 시 시각적 피드백
+        }
+
+        // TODO: 파티클 효과나 UI 표시 추가 가능
     }
+
 
     public int GetColorCode()
     {
