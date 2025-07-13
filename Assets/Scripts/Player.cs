@@ -23,9 +23,16 @@ public class Player : MonoBehaviour
         targetPosition = transform.position;
     }
 
+    private KeyCode lastKeyPressed = KeyCode.None;
+
     void Update()
     {
         moveTimer += Time.deltaTime;
+
+        if (Input.GetKeyDown(KeyCode.W)) lastKeyPressed = KeyCode.W;
+        if (Input.GetKeyDown(KeyCode.S)) lastKeyPressed = KeyCode.S;
+        if (Input.GetKeyDown(KeyCode.A)) lastKeyPressed = KeyCode.A;
+        if (Input.GetKeyDown(KeyCode.D)) lastKeyPressed = KeyCode.D;
 
         if (!isMoving && moveTimer >= moveCooldown && !isJumping)
         {
@@ -43,22 +50,33 @@ public class Player : MonoBehaviour
         HandleJump();
     }
 
+    Vector3 GetDirectionFromKey(KeyCode key)
+    {
+        switch (key)
+        {
+            case KeyCode.W: return Vector3.forward;
+            case KeyCode.S: return Vector3.back;
+            case KeyCode.A: return Vector3.left;
+            case KeyCode.D: return Vector3.right;
+            default: return Vector3.zero;
+        }
+    }
+
+
+
     void HandleDirectionOnly()
     {
-        if (Input.GetKey(KeyCode.W)) transform.rotation = Quaternion.LookRotation(Vector3.forward);
-        if (Input.GetKey(KeyCode.S)) transform.rotation = Quaternion.LookRotation(Vector3.back);
-        if (Input.GetKey(KeyCode.A)) transform.rotation = Quaternion.LookRotation(Vector3.left);
-        if (Input.GetKey(KeyCode.D)) transform.rotation = Quaternion.LookRotation(Vector3.right);
+        Vector3 direction = GetDirectionFromKey(lastKeyPressed);
+        if (direction != Vector3.zero)
+        {
+            transform.rotation = Quaternion.LookRotation(direction);
+        }
     }
+
 
     void HandleMovement()
     {
-        Vector3 direction = Vector3.zero;
-        if (Input.GetKey(KeyCode.W)) direction = Vector3.forward;
-        if (Input.GetKey(KeyCode.S)) direction = Vector3.back;
-        if (Input.GetKey(KeyCode.A)) direction = Vector3.left;
-        if (Input.GetKey(KeyCode.D)) direction = Vector3.right;
-
+        Vector3 direction = GetDirectionFromKey(lastKeyPressed);
         if (direction != Vector3.zero)
         {
             Vector3 nextPosition = transform.position + direction * moveDistance;
@@ -70,6 +88,7 @@ public class Player : MonoBehaviour
             }
         }
     }
+
 
     IEnumerator MoveTo(Vector3 destination)
     {

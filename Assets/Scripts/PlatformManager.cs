@@ -130,10 +130,10 @@ public class PlatformManager : MonoBehaviour
     {
         Vector3[] casePositions = new Vector3[]
         {
-            new Vector3(10f, 5f, 0f),
-            new Vector3(-10f, 5f, 0f),
-            new Vector3(0f, 5f, 10f),
-            new Vector3(0f, 5f, -10f)
+            new Vector3(3f, 1f, 0f),
+            new Vector3(-3f, 1f, 0f),
+            new Vector3(0f, 1f, 3f),
+            new Vector3(0f, 1f, -3f)
         };
 
         int index = Random.Range(0, casePositions.Length);
